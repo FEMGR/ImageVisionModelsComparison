@@ -49,16 +49,16 @@ ImageVisionModelComparison/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ImageVisionModelComparison.git
+git clone https://github.com/FEMGR/ImageVisionModelsComparison.git
 cd ImageVisionModelComparison
 ```
 
 ### 2. Install Dependencies
 
-The project requires PyTorch, Torchvision, Hugging Face Transformers, and Pillow.
+Install the project's Python dependencies from `requirements.txt`:
 
 ```bash
-pip install torch torchvision transformers pillow
+pip install -r requirements.txt
 ```
 
 ### 3. Configure Model Weights & Metadata
