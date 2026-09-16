@@ -20,12 +20,19 @@ def prompt_for_custom_model() -> str:
     return file_path
 
 
-def prompt_for_images() -> list:
-    """Opens a dialog for the user to select one or multiple images."""
+def prompt_for_images():
+    """Opens a file dialog allowing the selection of multiple image files."""
     root = tk.Tk()
-    root.withdraw()
+    root.withdraw()  # Hide the main tkinter root window
+
+    # Note the 's' at the end of askopenfilenames
     file_paths = filedialog.askopenfilenames(
-        title="Select plant images to evaluate",
-        filetypes=[("Images", "*.jpg *.jpeg *.png")],
+        title="Select Plant Image(s)",
+        filetypes=[
+            ("Image Files", "*.jpg *.jpeg *.png *.bmp *.webp"),
+            ("All Files", "*.*"),
+        ],
     )
-    return list(file_paths)
+
+    # askopenfilenames returns a tuple of strings, which works natively with len() and loops
+    return file_paths
