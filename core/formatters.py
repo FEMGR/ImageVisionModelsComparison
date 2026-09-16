@@ -1,8 +1,8 @@
 # core/formatters.py
-import csv
 import os
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
 
 
 def export_results_to_csv(
