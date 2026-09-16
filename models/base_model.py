@@ -2,9 +2,11 @@
 Every model will inherit from this class so the main script
 doesn't need to know how the specific model works under the hood.
 """
-#models/base_model.py
+
+# models/base_model.py
 
 from abc import ABC, abstractmethod
+
 
 class BasePlantModel(ABC):
     def __init__(self, name):

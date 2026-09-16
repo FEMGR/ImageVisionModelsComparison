@@ -1,5 +1,4 @@
-
-#core/config.py
+# core/config.py
 
 import os
 

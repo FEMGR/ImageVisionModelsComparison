@@ -1,12 +1,13 @@
-
-#core/formatters.py
+# core/formatters.py
 import csv
 import os
 import pandas as pd
 from datetime import datetime
 
 
-def export_results_to_csv(all_predictions: dict, output_dir: str = ".", output_filename: str = None) -> str:
+def export_results_to_csv(
+    all_predictions: dict, output_dir: str = ".", output_filename: str = None
+) -> str:
     """
     Exports evaluation results and confidence scores to a CSV file.
 
@@ -29,26 +30,33 @@ def export_results_to_csv(all_predictions: dict, output_dir: str = ".", output_f
     rows = []
     for img_name, models_data in all_predictions.items():
         for model_name, (species, confidence) in models_data.items():
-            rows.append({
-                "Image Name": img_name,
-                "Model": model_name,
-                "Predicted Species": species,
-                "Confidence (%)": round(confidence, 2)
-            })
+            rows.append(
+                {
+                    "Image Name": img_name,
+                    "Model": model_name,
+                    "Predicted Species": species,
+                    "Confidence (%)": round(confidence, 2),
+                }
+            )
 
     # Convert to DataFrame for robust CSV formatting and escaping
     df = pd.DataFrame(rows)
 
     # Export to CSV
     os.makedirs(output_dir, exist_ok=True)
-    df.to_csv(output_path, index=False, encoding='utf-8')
+    df.to_csv(output_path, index=False, encoding="utf-8")
     print(f"\n[+] Results successfully exported to {output_path}")
 
     return output_path
 
 
-def check_low_confidence_alternatives(model_name, probs, idx_to_name_func, confidence_threshold=90.0,
-                                      min_alt_confidence=30.0):
+def check_low_confidence_alternatives(
+    model_name,
+    probs,
+    idx_to_name_func,
+    confidence_threshold=90.0,
+    min_alt_confidence=30.0,
+):
     """
     Shared utility to inspect PyTorch probability tensors and print alternatives
     if confidence falls below a threshold.
@@ -69,15 +77,19 @@ def check_low_confidence_alternatives(model_name, probs, idx_to_name_func, confi
 
         if viable_alternatives:
             print(
-                f"\n   [{model_name}] Low confidence ({top_conf:.2f}% < {confidence_threshold}%). Other likely alternatives (>{min_alt_confidence}%):")
+                f"\n   [{model_name}] Low confidence ({top_conf:.2f}% < {confidence_threshold}%). Other likely alternatives (>{min_alt_confidence}%):"
+            )
             for name, conf in viable_alternatives:
                 print(f"      - {name} ({conf:.2f}%)")
             print("-" * 50)
+
 
 def print_results(image_name: str, predictions: dict):
     """Formats the inferences clearly into the console."""
     print(f"\nResults for '{image_name}':")
     print("-" * 65)
     for model_name, (species, confidence) in predictions.items():
-        print(f"[{model_name:<18}] Species: {species:<22} | Confidence: {confidence:>5.2f}%")
+        print(
+            f"[{model_name:<18}] Species: {species:<22} | Confidence: {confidence:>5.2f}%"
+        )
     print("-" * 65)

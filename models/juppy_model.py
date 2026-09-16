@@ -1,7 +1,8 @@
 """
 Wrapper for juppy44 Vision Transformer
 """
-#models/juppy_model.py
+
+# models/juppy_model.py
 
 import os
 import torch
@@ -31,15 +32,25 @@ class JuppyModel(BasePlantModel):
             # 2. Try loading from our custom centralized folder first
             try:
                 print(f"[{self.name}] Checking centralized folder: {self.model_dir}...")
-                self.processor = AutoImageProcessor.from_pretrained(self.model_dir, local_files_only=True)
-                self.model = AutoModelForImageClassification.from_pretrained(self.model_dir, local_files_only=True)
+                self.processor = AutoImageProcessor.from_pretrained(
+                    self.model_dir, local_files_only=True
+                )
+                self.model = AutoModelForImageClassification.from_pretrained(
+                    self.model_dir, local_files_only=True
+                )
                 print(f"[{self.name}] Successfully loaded from local folder!")
 
             # 3. Fall back to downloading directly into our centralized folder
             except Exception:
-                print(f"[{self.name}] Model not found locally. Downloading to {self.model_dir}...")
-                self.processor = AutoImageProcessor.from_pretrained(self.model_id, cache_dir=self.model_dir)
-                self.model = AutoModelForImageClassification.from_pretrained(self.model_id, cache_dir=self.model_dir)
+                print(
+                    f"[{self.name}] Model not found locally. Downloading to {self.model_dir}..."
+                )
+                self.processor = AutoImageProcessor.from_pretrained(
+                    self.model_id, cache_dir=self.model_dir
+                )
+                self.model = AutoModelForImageClassification.from_pretrained(
+                    self.model_id, cache_dir=self.model_dir
+                )
 
         self.model.eval()
 
@@ -59,9 +70,7 @@ class JuppyModel(BasePlantModel):
 
         # Invoke centralized low-confidence checker
         check_low_confidence_alternatives(
-            self.name,
-            probs,
-            lambda idx: self.model.config.id2label[idx]
+            self.name, probs, lambda idx: self.model.config.id2label[idx]
         )
 
         return label, confidence
