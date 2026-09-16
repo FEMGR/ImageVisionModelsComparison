@@ -1,0 +1,3 @@
+Image Name,Model,Predicted Species,Confidence (%)
+Flowers.jpg,Juppy44 ViT-B,Tagetes erecta,89.64
+Flowers.jpg,PlantNet-300K,Tagetes erecta L.,56.44

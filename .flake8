@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 160
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    backend/alembic/versions/*
+
+ignore = E203,E265,E261,E262,E302,E303,E305,W291,W292,W293,W391,W503,W504
+per-file-ignores =
+    backend/alembic/env.py:F401
+    backend/app/models/__init__.py:F401
+    backend/app/api/v1/routes/__init__.py:F401
