@@ -4,8 +4,12 @@ import os
 
 from models.juppy_model import JuppyModel
 from models.plantnet_model import PlantNetModel
+from models.custom_model import CustomModel
 
-from core.analytics import plot_confidence_trends
+from core.analytics import (
+    log_prediction_result,
+    plot_confidence_trends,
+)
 
 from core.evaluation import (
     create_evaluation_record,
@@ -23,8 +27,6 @@ from core.ui_utils import (
     prompt_for_custom_model,
     prompt_for_images,
 )
-
-# from models.custom_model import CustomModel
 
 
 def initialize_models():
@@ -113,6 +115,16 @@ def process_images(image_paths, models):
 
                 all_evaluation_results.append(evaluation_record)
 
+                if ranked_predictions:
+                    top_species, top_confidence = ranked_predictions[0]
+
+                    log_prediction_result(
+                        image_name=img_name,
+                        model_name=model.name,
+                        species=top_species,
+                        confidence=top_confidence,
+                    )
+
             except Exception as exc:
                 print(f"Error with {model.name} on {img_name}: " f"{exc}")
 
@@ -157,14 +169,12 @@ def main():
 
             print(f"Selected custom model: " f"{custom_model_path}")
 
-            # Enable this when CustomModel is implemented:
-            #
-            # custom_model = CustomModel(
-            #     name="My Custom Model",
-            #     model_path=custom_model_path,
-            # )
-            #
-            # models.append(custom_model)
+            custom_model = CustomModel(
+                name="Custom Model",
+                model_path=custom_model_path,
+            )
+
+            models.append(custom_model)
 
         else:
 

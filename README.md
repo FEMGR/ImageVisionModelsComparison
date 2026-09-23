@@ -2,7 +2,17 @@
 
 A modular, extensible Python system for benchmarking and comparing pre-trained plant identification models side-by-side.
 
-This repository implements the **Strategy Pattern** to handle multiple underlying model architectures, including Hugging Face Vision Transformers and PyTorch ResNets, through a unified prediction interface. It features centralized model-weight management, metadata/JSON mapping layers, and confidence evaluation with alternative prediction filtering.
+This repository implements the **Strategy Pattern** to support multiple underlying model architectures, including Hugging Face Vision Transformers and PyTorch ResNets, through a unified prediction interface.
+
+The system provides an experimental workflow for:
+
+* running multiple plant identification models on the same images,
+* generating ranked Top-K species predictions,
+* comparing predictions against user-provided ground truth,
+* calculating Top-1, Top-3, and Top-5 accuracy,
+* analyzing model confidence and alternative predictions,
+* exporting detailed evaluation results as CSV files, and
+* generating graphical visualizations for comparing model confidence.
 
 The models currently included in the comparison are:
 
@@ -16,11 +26,30 @@ These models serve as **pre-trained baselines** for evaluating plant image class
 ## 🚀 Key Features
 
 * **Modular Strategy Architecture:** Plug in, test, and compare different plant identification models through a unified wrapper interface.
+
 * **Multiple Model Architectures:** Supports both Vision Transformer and ResNet-based plant identification models.
-* **Centralized Configuration:** Model assets are organized through a unified `./weights/` directory structure.
-* **Confidence Analysis:** Evaluates prediction probabilities, identifies low-confidence predictions (e.g., `< 90%`), and reports alternative species predictions.
-* **Batch Processing & File Dialogs:** Interactive file selection for testing local image sets.
-* **Automated Results Export:** Evaluation and confidence results are timestamped and exported to `./results/`.
+
+* **Top-K Prediction:** Generates ranked Top-1, Top-3, and Top-5 species predictions with associated confidence percentages.
+
+* **Ground-Truth Evaluation:** Allows the user to provide the expected species for each test image and automatically compares model predictions against the ground truth.
+
+* **Species Name Normalization:** Handles common formatting differences in botanical names during evaluation, such as author abbreviations and missing whitespace.
+
+* **Accuracy Analysis:** Calculates Top-1, Top-3, and Top-5 accuracy for each model in the current experiment.
+
+* **Confidence Analysis:** Records prediction confidence and identifies alternative species when the highest-confidence prediction does not meet the configured confidence threshold.
+
+* **Historical Confidence Tracking:** Maintains a historical record of model confidence across evaluation sessions for subsequent analysis.
+
+* **Graphical Comparison:** Generates a confidence comparison graph showing the prediction confidence produced by each model for the evaluated images.
+
+* **Descriptive Statistics:** Calculates confidence statistics including mean, median, minimum, maximum, and standard deviation for each model.
+
+* **Batch Processing & File Dialogs:** Provides interactive image selection for evaluating multiple local images in a single experiment.
+
+* **Automated Results Export:** Exports raw predictions, per-image evaluation results, aggregate accuracy summaries, and historical confidence data to the `./results/` directory.
+
+* **Extensible Research Workflow:** Separates model implementations from prediction, evaluation, and analytics components so that additional models can be incorporated into future experiments.
 
 ---
 
@@ -28,19 +57,72 @@ These models serve as **pre-trained baselines** for evaluating plant image class
 
 ```text
 ImageVisionModelComparison/
+│
 ├── core/
-│   ├── config.py             # Centralized constants and WEIGHTS_DIR paths
-│   └── formatters.py         # Shared prediction and confidence utilities
+│   ├── analytics.py           # Historical confidence logging,
+│   │                          # statistics, and graph generation
+│   ├── evaluation.py          # Ground-truth comparison and
+│   │                          # Top-K accuracy calculations
+│   ├── formatters.py          # CSV export and result formatting
+│   ├── ui_utils.py            # Interactive image/model selection
+│   └── config.py              # Centralized configuration and
+│                              # WEIGHTS_DIR paths
+│
 ├── models/
-│   ├── base_model.py         # Abstract base strategy class
-│   ├── juppy_model.py        # Hugging Face ViT-B wrapper
-│   └── plantnet_model.py     # Pl@ntNet-300K ResNet-18 wrapper
+│   ├── base_model.py          # Abstract strategy interface
+│   ├── juppy_model.py         # Hugging Face ViT-B wrapper
+│   └── plantnet_model.py      # Pl@ntNet-300K ResNet-18 wrapper
+│
 ├── weights/
-│   ├── juppy44/              # Local Hugging Face model weights & configuration
-│   └── plantnet300k/          # ResNet weights & metadata mapping files
-├── results/                  # Automated evaluation exports (.csv)
-└── main.py                   # Entry point for running evaluations
+│   ├── juppy44/               # Local Hugging Face model weights
+│   │                          # and configuration
+│   └── plantnet300k/          # ResNet weights and species
+│                              # metadata mapping files
+│
+├── results/
+│   ├── plant_model_predictions.csv
+│   ├── evaluation_results.csv
+│   ├── evaluation_summary.csv
+│   ├── model_confidence_history.csv
+│   └── confidence_comparison_chart.png
+│
+└── main.py                    # Main evaluation workflow
 ```
+
+### Output Files
+
+The `results/` directory contains both **structured experimental data** and **visual analysis outputs**.
+
+| Output                            | Purpose                                                       |
+| --------------------------------- | ------------------------------------------------------------- |
+| `plant_model_predictions.csv`     | Ranked Top-K predictions and confidence for each model        |
+| `evaluation_results.csv`          | Per-image comparison between predictions and ground truth     |
+| `evaluation_summary.csv`          | Aggregate Top-1, Top-3, and Top-5 accuracy                    |
+| `model_confidence_history.csv`    | Historical prediction confidence across evaluation runs       |
+| `confidence_comparison_chart.png` | Graphical comparison of model confidence for evaluated images |
+
+The generated graph provides a visual representation of the confidence values produced by the different models, while the CSV files preserve the underlying experimental results for further analysis.
+
+For example, the confidence comparison workflow can be represented as:
+
+```text
+Test Images
+     │
+     ▼
+Model Predictions
+     │
+     ├───────────────┐
+     ▼               ▼
+Evaluation       Confidence
+Metrics           Analysis
+     │               │
+     ▼               ▼
+CSV Results       Statistics
+                     │
+                     ▼
+              Confidence Graph
+```
+
 
 ---
 

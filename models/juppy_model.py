@@ -13,7 +13,6 @@ from transformers import (
     AutoImageProcessor,
     AutoModelForImageClassification,
 )
-
 from .base_model import BasePlantModel
 from core.config import WEIGHTS_DIR
 from core.formatters import check_low_confidence_alternatives

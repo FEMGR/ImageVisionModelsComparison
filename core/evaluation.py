@@ -6,6 +6,7 @@ Utilities for evaluating plant identification model predictions.
 This module compares model predictions against a known ground-truth
 species and calculates Top-1, Top-3, and Top-5 correctness.
 """
+import re
 
 
 def normalize_species_name(name: str) -> str:
@@ -28,11 +29,68 @@ def normalize_species_name(name: str) -> str:
     if not name:
         return ""
 
+        # ---------------------------------------------------------
+        # 1. Basic whitespace and case normalization
+        # ---------------------------------------------------------
+
     name = name.strip().lower()
 
-    # Remove common botanical author citation for basic comparison.
-    if name.endswith(" l."):
-        name = name[:-3].strip()
+    # Replace repeated whitespace with a single space.
+    name = " ".join(name.split())
+
+    # ---------------------------------------------------------
+    # 2. Normalize common punctuation
+    # ---------------------------------------------------------
+
+    name = name.replace(",", " ")
+    name = " ".join(name.split())
+
+    # ---------------------------------------------------------
+    # 3. Remove common botanical author citation: "L."
+    #
+    # Examples:
+    #   "tagetes erecta l."
+    #   "tagetes erecta l"
+    # ---------------------------------------------------------
+
+    name = re.sub(
+        r"\s+l\.?$",
+        "",
+        name,
+    ).strip()
+
+    # ---------------------------------------------------------
+    # 4. Handle missing whitespace between genus and species
+    #
+    # Example:
+    #   "hydrangeamacrophylla"
+    #       -> "hydrangea macrophylla"
+    #
+    # This is handled only for known genus names rather than
+    # inserting spaces blindly into arbitrary species names.
+    # ---------------------------------------------------------
+
+    known_genera = [
+        "hibiscus",
+        "hydrangea",
+        "lansium",
+        "passiflora",
+        "tagetes",
+    ]
+
+    for genus in known_genera:
+
+        if (
+            name.startswith(genus)
+            and name != genus
+            and not name.startswith(genus + " ")
+        ):
+            name = genus + " " + name[len(genus) :]
+            break
+
+    # ---------------------------------------------------------
+    # 5. Final whitespace normalization
+    # ---------------------------------------------------------
 
     return " ".join(name.split())
 

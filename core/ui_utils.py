@@ -10,14 +10,13 @@ from tkinter import filedialog
 
 
 def prompt_for_custom_model() -> str:
-    """Opens a file dialog for the user to select their custom model weights."""
+    """Open a dialog for the user to select a local Hugging Face model folder."""
     root = tk.Tk()
     root.withdraw()  # Hide the main tkinter window
-    file_path = filedialog.askopenfilename(
-        title="Select your custom model weights (.pth, .pt, .onnx)",
-        filetypes=[("Model Files", "*.pth *.pt *.onnx *.h5"), ("All Files", "*.*")],
+    folder_path = filedialog.askdirectory(
+        title="Select your custom Hugging Face model folder",
     )
-    return file_path
+    return folder_path
 
 
 def prompt_for_images():
