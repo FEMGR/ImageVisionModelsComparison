@@ -57,10 +57,13 @@ class FineTuner:
             weight_decay=config.weight_decay,
         )
 
+        # Stores the path of the best checkpoint produced during training.
+        self.best_checkpoint_path: Path | None = None
+
     def train(self) -> Dict[str, list]:
         """Run the complete fine-tuning experiment."""
 
-        self.config.output_dir.mkdir(
+        self.config.experiment_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
@@ -72,7 +75,7 @@ class FineTuner:
             "val_accuracy": [],
         }
 
-        best_accuracy = 0.0
+        best_accuracy = -1.0
 
         for epoch in range(1, self.config.epochs + 1):
 
@@ -101,9 +104,10 @@ class FineTuner:
             )
 
             if val_result.accuracy > best_accuracy:
+
                 best_accuracy = val_result.accuracy
 
-                self._save_checkpoint(
+                self.best_checkpoint_path = self._save_checkpoint(
                     epoch=epoch,
                     validation_accuracy=val_result.accuracy,
                 )
@@ -115,6 +119,7 @@ class FineTuner:
         loader: DataLoader,
         training: bool,
     ) -> EpochResult:
+        """Run one training or validation epoch."""
 
         if training:
             self.model.train()
@@ -164,8 +169,9 @@ class FineTuner:
         epoch: int,
         validation_accuracy: float,
     ) -> Path:
+        """Save the current best training checkpoint."""
 
-        path = self.config.output_dir / "best_model.pt"
+        path = self.config.experiment_dir / "best_model.pt"
 
         torch.save(
             {
@@ -176,5 +182,7 @@ class FineTuner:
             },
             path,
         )
+
+        print(f"  Saved best checkpoint: {path}")
 
         return path

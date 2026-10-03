@@ -108,6 +108,32 @@ def export_evaluation_summary(
     return output_path
 
 
+def export_training_history(
+    history,
+    output_dir: str = "./results",
+    output_filename: str = "training_history.csv",
+) -> str:
+    """Export training and validation metrics to CSV."""
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    output_path = os.path.join(
+        output_dir,
+        output_filename,
+    )
+
+    df = pd.DataFrame(history.to_dict())
+
+    df.to_csv(
+        output_path,
+        index=False,
+    )
+
+    print(f"\nTraining history successfully exported to: " f"{output_path}")
+
+    return output_path
+
+
 def check_low_confidence_alternatives(
     model_name,
     probs,

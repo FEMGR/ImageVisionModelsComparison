@@ -1,5 +1,5 @@
 """
-Fine-tune Juppy44 with additional local plant classes.
+Fine-tune Juppy44 (Vit based) with additional local plant classes.
 
 This script extends the original Juppy44 classification head while
 preserving the pretrained classifier weights for the original classes.
@@ -30,6 +30,7 @@ Output:
 # fine_tune/juppy44_fineTuner.py
 
 import random
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -42,6 +43,18 @@ from transformers import (
     AutoImageProcessor,
     AutoModelForImageClassification,
 )
+from core.analytics import (
+    TrainingHistory,
+    plot_roc_auc_curve,
+    plot_training_accuracy,
+    plot_training_loss,
+    print_roc_auc,
+)
+from core.formatters import (
+    export_evaluation_results,
+    export_evaluation_summary,
+    export_training_history,
+)
 
 # =============================================================
 # Configuration
@@ -49,9 +62,14 @@ from transformers import (
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 BASE_MODEL_DIR = ROOT_DIR / "weights" / "juppy44"
 
 EXTENDED_MODEL_DIR = ROOT_DIR / "weights" / "juppy44_extended"
+
+RESULTS_DIR = ROOT_DIR / "results" / "fine_tune" / "juppy44_extended"
 
 DATASET_DIR = ROOT_DIR / "datasets" / "local_plants"
 
@@ -706,6 +724,106 @@ def validate(
     )
 
 
+def collect_local_validation_probabilities(
+    model,
+    loader,
+    device,
+    old_num_classes: int,
+    local_class_count: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Collect validation labels and probabilities for the local classes only.
+
+    The extended classifier still contains the original Juppy44 labels.
+    ROC-AUC for fine-tuning should compare only the added local classes.
+    """
+
+    model.eval()
+
+    true_labels = []
+
+    probability_rows = []
+
+    with torch.no_grad():
+
+        for pixel_values, labels in loader:
+
+            pixel_values = pixel_values.to(device)
+
+            outputs = model(pixel_values=pixel_values)
+
+            probabilities = torch.softmax(
+                outputs.logits,
+                dim=1,
+            )
+
+            local_probabilities = probabilities[
+                :,
+                old_num_classes : old_num_classes + local_class_count,
+            ]
+
+            local_probabilities = local_probabilities.cpu().numpy()
+
+            row_sums = local_probabilities.sum(
+                axis=1,
+                keepdims=True,
+            )
+
+            local_probabilities = np.divide(
+                local_probabilities,
+                row_sums,
+                out=np.zeros_like(local_probabilities),
+                where=row_sums > 0,
+            )
+
+            local_labels = labels.cpu().numpy() - old_num_classes
+
+            true_labels.extend(local_labels.tolist())
+
+            probability_rows.extend(local_probabilities.tolist())
+
+    return (
+        np.asarray(true_labels, dtype=int),
+        np.asarray(probability_rows, dtype=float),
+    )
+
+
+def build_validation_results(
+    validation_dataset: LocalPlantDataset,
+    true_labels: np.ndarray,
+    probabilities: np.ndarray,
+    local_classes: List[str],
+) -> List[Dict[str, object]]:
+    """Create per-image validation output rows for CSV export."""
+
+    predicted_labels = probabilities.argmax(axis=1)
+
+    rows = []
+
+    for index, ((image_path, _), true_label, predicted_label) in enumerate(
+        zip(
+            validation_dataset.samples,
+            true_labels,
+            predicted_labels,
+        )
+    ):
+
+        confidence = probabilities[index, predicted_label] * 100
+
+        rows.append(
+            {
+                "ImageName": image_path.name,
+                "ImagePath": str(image_path),
+                "TrueLabel": local_classes[int(true_label)],
+                "PredictedLabel": local_classes[int(predicted_label)],
+                "ConfidencePercent": round(float(confidence), 4),
+                "Correct": bool(true_label == predicted_label),
+            }
+        )
+
+    return rows
+
+
 # =============================================================
 # Main fine-tuning procedure
 # =============================================================
@@ -878,11 +996,20 @@ def main():
 
     criterion = nn.CrossEntropyLoss()
 
+    RESULTS_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     # ---------------------------------------------------------
     # 12. Training loop
     # ---------------------------------------------------------
 
+    history = TrainingHistory()
+
     best_validation_accuracy = -1.0
+
+    best_epoch = 0
 
     best_state_dict = None
 
@@ -924,9 +1051,19 @@ def main():
             f"val acc: {validation_accuracy:.4f}"
         )
 
+        history.add_epoch(
+            epoch=epoch,
+            train_loss=train_loss,
+            val_loss=validation_loss,
+            train_accuracy=train_accuracy,
+            val_accuracy=validation_accuracy,
+        )
+
         if validation_accuracy > best_validation_accuracy:
 
             best_validation_accuracy = validation_accuracy
+
+            best_epoch = epoch
 
             best_state_dict = {
                 key: value.detach().cpu().clone()
@@ -942,7 +1079,92 @@ def main():
         model.load_state_dict(best_state_dict)
 
     # ---------------------------------------------------------
-    # 14. Verify original classifier
+    # 14. Export analytics and validation outputs
+    # ---------------------------------------------------------
+
+    print("\nGenerating fine-tuning analytics...")
+
+    export_training_history(
+        history=history,
+        output_dir=str(RESULTS_DIR),
+        output_filename="juppy44_training_history.csv",
+    )
+
+    plot_training_loss(
+        history=history,
+        output_path=str(RESULTS_DIR / "juppy44_training_validation_loss.png"),
+    )
+
+    plot_training_accuracy(
+        history=history,
+        output_path=str(RESULTS_DIR / "juppy44_training_validation_accuracy.png"),
+    )
+
+    (
+        validation_true_labels,
+        validation_probabilities,
+    ) = collect_local_validation_probabilities(
+        model=model,
+        loader=validation_loader,
+        device=device,
+        old_num_classes=old_num_classes,
+        local_class_count=len(local_classes),
+    )
+
+    roc_auc = print_roc_auc(
+        true_labels=validation_true_labels,
+        probabilities=validation_probabilities,
+    )
+
+    roc_auc = plot_roc_auc_curve(
+        true_labels=validation_true_labels,
+        probabilities=validation_probabilities,
+        class_names=local_classes,
+        output_path=str(RESULTS_DIR / "juppy44_validation_roc_auc.png"),
+    )
+
+    validation_results = build_validation_results(
+        validation_dataset=validation_dataset,
+        true_labels=validation_true_labels,
+        probabilities=validation_probabilities,
+        local_classes=local_classes,
+    )
+
+    export_evaluation_results(
+        evaluation_results=validation_results,
+        output_dir=str(RESULTS_DIR),
+        output_filename="juppy44_validation_predictions.csv",
+    )
+
+    export_evaluation_summary(
+        evaluation_summary=[
+            {
+                "ModelName": "Juppy44 Extended",
+                "Epochs": EPOCHS,
+                "BestEpoch": best_epoch,
+                "BestValidationAccuracy": round(
+                    best_validation_accuracy,
+                    6,
+                ),
+                "ValidationRocAuc": (
+                    round(
+                        roc_auc,
+                        6,
+                    )
+                    if roc_auc is not None
+                    else None
+                ),
+                "TrainingImages": len(train_dataset),
+                "ValidationImages": len(validation_dataset),
+                "LocalClasses": len(local_classes),
+            }
+        ],
+        output_dir=str(RESULTS_DIR),
+        output_filename="juppy44_training_summary.csv",
+    )
+
+    # ---------------------------------------------------------
+    # 15. Verify original classifier
     # ---------------------------------------------------------
 
     verify_original_classifier(
@@ -953,7 +1175,7 @@ def main():
     )
 
     # ---------------------------------------------------------
-    # 15. Create output directory
+    # 16. Create output directory
     # ---------------------------------------------------------
 
     EXTENDED_MODEL_DIR.mkdir(
@@ -962,7 +1184,7 @@ def main():
     )
 
     # ---------------------------------------------------------
-    # 16. Save extended model
+    # 17. Save extended model
     # ---------------------------------------------------------
 
     print("\nSaving extended Juppy44 model...")
@@ -973,13 +1195,13 @@ def main():
     )
 
     # ---------------------------------------------------------
-    # 17. Save processor
+    # 18. Save processor
     # ---------------------------------------------------------
 
     processor.save_pretrained(EXTENDED_MODEL_DIR)
 
     # ---------------------------------------------------------
-    # 18. Final information
+    # 19. Final information
     # ---------------------------------------------------------
 
     print("-" * 70)
@@ -989,6 +1211,8 @@ def main():
     print(f"Best validation accuracy: " f"{best_validation_accuracy:.4f}")
 
     print(f"Saved model: " f"{EXTENDED_MODEL_DIR}")
+
+    print(f"Saved analytics: " f"{RESULTS_DIR}")
 
     print("\nThe original Juppy44 model was not modified.")
 

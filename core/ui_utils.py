@@ -4,9 +4,12 @@ handle user interaction, allowing the user to
 """
 
 # core/ui_utils.py
-
+import os
 import tkinter as tk
 from tkinter import filedialog
+from typing import List
+
+PICTURE_DIR = "/home/graubo/Pictures"
 
 
 def prompt_for_custom_model() -> str:
@@ -19,19 +22,27 @@ def prompt_for_custom_model() -> str:
     return folder_path
 
 
-def prompt_for_images():
-    """Opens a file dialog allowing the selection of multiple image files."""
+def prompt_for_images(initial_dir: str = PICTURE_DIR) -> List[str]:
+    """Opens a file dialog to select multiple images from a specific directory."""
     root = tk.Tk()
-    root.withdraw()  # Hide the main tkinter root window
+    root.withdraw()  # Hide the main root window
+    root.attributes("-topmost", True)  # Force dialog to pop up in FRONT of PyCharm
 
-    # Note the 's' at the end of askopenfilenames
-    file_paths = filedialog.askopenfilenames(
+    # Fall back to current working directory if initial_dir is invalid
+    if not initial_dir or not os.path.exists(initial_dir):
+        initial_dir = os.getcwd()
+
+    selected_files = filedialog.askopenfilenames(
         title="Select Plant Image(s)",
+        initialdir=initial_dir,
         filetypes=[
             ("Image Files", "*.jpg *.jpeg *.png *.bmp *.webp"),
             ("All Files", "*.*"),
         ],
     )
 
-    # askopenfilenames returns a tuple of strings, which works natively with len() and loops
-    return file_paths
+    # Clean up Tkinter instance completely so it won't block main loop
+    root.destroy()
+
+    # Always return a explicit Python list
+    return list(selected_files) if selected_files else []

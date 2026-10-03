@@ -18,6 +18,13 @@ class FineTuneConfig:
 
     freeze_backbone: bool = True
 
-    output_dir: Path = Path("artifacts/plant_identification/fine_tuned")
+    experiment_dir: Path = Path("artifacts/plant_identification/fine_tuning")
 
+    output_model_dir: Path = Path("weights/juppy44_extended")
     save_best_only: bool = True
+
+    @property
+    def output_dir(self) -> Path:
+        """Directory used by the generic fine-tuner for checkpoints."""
+
+        return self.experiment_dir
